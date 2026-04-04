@@ -1,0 +1,691 @@
+openapi: 3.0.3
+info:
+  title: Venom Laravel API
+  description: |
+    Comprehensive API specification for the Venom Laravel application.
+    Designed for GitHub Copilot agent integration and development.
+    
+    ## Features
+    - RESTful API endpoints
+    - Authentication with Laravel Sanctum
+    - Comprehensive error handling
+    - Rate limiting
+    - Request validation
+    
+    ## GitHub Copilot Agent Integration
+    This API is designed to work seamlessly with GitHub Copilot agents for:
+    - Automated testing
+    - Code generation
+    - Documentation updates
+    - API client generation
+    
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@venom.local
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://dev.venom.local
+    description: Development server
+  - url: https://venom.test
+    description: Local Herd server
+  - url: https://api.venom.com
+    description: Production server
+
+security:
+  - bearerAuth: []
+
+paths:
+  /:
+    get:
+      tags:
+        - Public
+      summary: Welcome page
+      description: Get the application welcome page
+      operationId: getWelcome
+      responses:
+        '200':
+          description: Welcome page content
+          content:
+            text/html:
+              schema:
+                type: string
+                example: "<html>...</html>"
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Create a new user account
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user and return access token
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: User logout
+      description: Revoke user access token
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logout successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessMessage'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/user:
+    get:
+      tags:
+        - User
+      summary: Get current user
+      description: Retrieve the authenticated user's information
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User information retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      tags:
+        - User
+      summary: Update user profile
+      description: Update the authenticated user's profile information
+      operationId: updateUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /api/users:
+    get:
+      tags:
+        - Users
+      summary: List users
+      description: Get paginated list of users (admin only)
+      operationId: listUsers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          description: Page number
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: per_page
+          in: query
+          description: Items per page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 15
+        - name: search
+          in: query
+          description: Search term for name or email
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPagination'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user by ID
+      description: Retrieve a specific user by ID
+      operationId: getUserById
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: User retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    delete:
+      tags:
+        - Users
+      summary: Delete user
+      description: Delete a user (admin only)
+      operationId: deleteUser
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          description: User ID
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: User deleted successfully
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Get application health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Application is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Laravel Sanctum bearer token
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: User ID
+          example: 1
+        name:
+          type: string
+          description: User's full name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john@example.com"
+        email_verified_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Email verification timestamp
+          example: "2023-01-01T00:00:00Z"
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: "2023-01-01T00:00:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2023-01-01T00:00:00Z"
+      required:
+        - id
+        - name
+        - email
+        - created_at
+        - updated_at
+
+    UserRegistration:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          description: User's full name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: User's email address
+          example: "john@example.com"
+        password:
+          type: string
+          minLength: 8
+          description: User's password
+          example: "SecurePassword123!"
+        password_confirmation:
+          type: string
+          description: Password confirmation
+          example: "SecurePassword123!"
+      required:
+        - name
+        - email
+        - password
+        - password_confirmation
+
+    UserLogin:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: "john@example.com"
+        password:
+          type: string
+          description: User's password
+          example: "SecurePassword123!"
+        remember:
+          type: boolean
+          default: false
+          description: Remember user login
+          example: true
+      required:
+        - email
+        - password
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 255
+          description: User's full name
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: User's email address
+          example: "john@example.com"
+        current_password:
+          type: string
+          description: Current password (required for password change)
+          example: "CurrentPassword123!"
+        password:
+          type: string
+          minLength: 8
+          description: New password
+          example: "NewPassword123!"
+        password_confirmation:
+          type: string
+          description: New password confirmation
+          example: "NewPassword123!"
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        token:
+          type: string
+          description: API access token
+          example: "1|abcdef123456789..."
+        token_type:
+          type: string
+          default: "Bearer"
+          example: "Bearer"
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Token expiration time
+          example: "2023-12-31T23:59:59Z"
+      required:
+        - user
+        - token
+        - token_type
+
+    UserPagination:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        current_page:
+          type: integer
+          example: 1
+        last_page:
+          type: integer
+          example: 10
+        per_page:
+          type: integer
+          example: 15
+        total:
+          type: integer
+          example: 150
+        from:
+          type: integer
+          example: 1
+        to:
+          type: integer
+          example: 15
+        path:
+          type: string
+          example: "/api/users"
+        next_page_url:
+          type: string
+          nullable: true
+          example: "/api/users?page=2"
+        prev_page_url:
+          type: string
+          nullable: true
+          example: null
+      required:
+        - data
+        - current_page
+        - last_page
+        - per_page
+        - total
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+          description: Application health status
+          example: "healthy"
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+          example: "2023-01-01T00:00:00Z"
+        services:
+          type: object
+          properties:
+            database:
+              type: string
+              enum: [healthy, unhealthy]
+              example: "healthy"
+            cache:
+              type: string
+              enum: [healthy, unhealthy]
+              example: "healthy"
+            queue:
+              type: string
+              enum: [healthy, unhealthy]
+              example: "healthy"
+        version:
+          type: string
+          description: Application version
+          example: "1.0.0"
+      required:
+        - status
+        - timestamp
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+          example: "The given data was invalid."
+        error_code:
+          type: string
+          description: Specific error code
+          example: "VALIDATION_ERROR"
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+          example: "2023-01-01T00:00:00Z"
+      required:
+        - message
+
+    ValidationError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: General error message
+          example: "The given data was invalid."
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          description: Field-specific validation errors
+          example:
+            email: ["The email field is required."]
+            password: ["The password must be at least 8 characters."]
+        error_code:
+          type: string
+          default: "VALIDATION_ERROR"
+          example: "VALIDATION_ERROR"
+      required:
+        - message
+        - errors
+
+    SuccessMessage:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: "Operation completed successfully."
+        timestamp:
+          type: string
+          format: date-time
+          description: Operation timestamp
+          example: "2023-01-01T00:00:00Z"
+      required:
+        - message
+
+tags:
+  - name: Public
+    description: Public endpoints that don't require authentication
+  - name: Authentication
+    description: User authentication and session management
+  - name: User
+    description: Current user profile management
+  - name: Users
+    description: User management (admin functions)
+  - name: System
+    description: System status and health checks
+
+externalDocs:
+  description: Laravel Documentation
+  url: https://laravel.com/docs
+
+x-copilot-agent-config:
+  description: |
+    Configuration for GitHub Copilot Agent integration
+  features:
+    - code-generation
+    - test-automation
+    - documentation
+    - client-generation
+  supported-languages:
+    - php
+    - javascript
+    - typescript
+    - python
+  test-frameworks:
+    - pest
+    - phpunit
+    - jest
+  client-generators:
+    - openapi-generator
+    - swagger-codegen
